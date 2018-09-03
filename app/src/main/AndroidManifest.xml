@@ -6,6 +6,8 @@
     <uses-permission
         android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
 
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <application
         android:name=".AppClass"
         android:allowBackup="true"
@@ -21,7 +23,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <service android:name=".XmppConnectionService"></service>
+        <service android:name=".XMPP"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="true"/>
     </application>
 
 </manifest>

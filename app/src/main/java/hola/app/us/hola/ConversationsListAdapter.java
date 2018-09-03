@@ -10,7 +10,9 @@ import android.widget.TextView;
 
 import org.jivesoftware.smack.roster.RosterEntry;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 public class ConversationsListAdapter extends RecyclerView.Adapter<ConversationsListAdapter.ViewHolder> {
 

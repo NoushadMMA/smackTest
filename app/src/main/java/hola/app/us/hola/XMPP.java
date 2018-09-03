@@ -1,8 +1,11 @@
 package hola.app.us.hola;
 
 import android.content.Context;
+import android.content.Intent;
 import android.os.Build;
 import android.os.Handler;
+import android.support.annotation.NonNull;
+import android.support.v4.app.JobIntentService;
 import android.util.Log;
 
 import org.jivesoftware.smack.ConnectionConfiguration;
@@ -29,7 +32,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 
-public class XMPP {
+public class XMPP extends JobIntentService implements OnLoggedIn {
 
 
     public static final String HOST = "server.holaapp.us";
@@ -40,31 +43,33 @@ public class XMPP {
 
     public static XMPP instance;
     Roster roster;
+    Context mContext;
+    boolean isLoggedIn = false;
     private XMPPTCPConnection connection;
     private ArrayList<String> messages = new ArrayList<String>();
     private Handler mHandler = new Handler();
-    private OnLoggedIn mOnLoggedIn;
+    private hola.app.us.hola.OnLoggedIn mOnLoggedIn;
     private OnConnected mOnConnected;
     private OnRosterListener mOnRosterListener;
     private RosterListener mRosterListener = new RosterListener() {
         @Override
         public void entriesAdded(Collection<Jid> addresses) {
-            mOnRosterListener.entriesAdded(addresses);
+            mOnRosterListener.entriesAdded(addresses, roster);
         }
 
         @Override
         public void entriesUpdated(Collection<Jid> addresses) {
-            mOnRosterListener.entriesUpdated(addresses);
+            mOnRosterListener.entriesUpdated(addresses, roster);
         }
 
         @Override
         public void entriesDeleted(Collection<Jid> addresses) {
-            mOnRosterListener.entriesDeleted(addresses);
+            mOnRosterListener.entriesDeleted(addresses, roster);
         }
 
         @Override
         public void presenceChanged(Presence presence) {
-            mOnRosterListener.presenceChanged(presence);
+            mOnRosterListener.presenceChanged(presence, roster);
         }
     };
     private OnStanzaListener mOnStanzaListener;
@@ -75,14 +80,16 @@ public class XMPP {
         }
     };
 
+    public XMPP(){
+
+    }
+
+    public XMPP(Context context) {
+        mContext = context;
+        instance = this;
+    }
+
     public static XMPP getInstance() {
-        if (instance == null) {
-            synchronized (XMPP.class) {
-                if (instance == null) {
-                    instance = new XMPP();
-                }
-            }
-        }
         return instance;
     }
 
@@ -118,27 +125,27 @@ public class XMPP {
     }
 
     private XMPPTCPConnection getConnection() {
-                Log.d(HOST, "Getting XMPP Connect");
-                long l = System.currentTimeMillis();
-                try {
-                    if (connection != null) {
-                        Log.d(HOST, "Connection found, trying to connect");
-                        connection.connect();
-                    } else {
-                        Log.d(HOST, "No Connection found, trying to create a new connection");
-                        XMPPTCPConnectionConfiguration config = buildConfiguration();
-                        SmackConfiguration.DEBUG = true;
-                        connection = new XMPPTCPConnection(config);
-                        connection.connect();
-                    }
-                } catch (Exception e) {
-                    Log.e(HOST, "some issue with getting connection :" + e.getMessage());
+        Log.d(HOST, "Getting XMPP Connect");
+        long l = System.currentTimeMillis();
+        try {
+            if (connection != null) {
+                Log.d(HOST, "Connection found, trying to connect");
+                connection.connect();
+            } else {
+                Log.d(HOST, "No Connection found, trying to create a new connection");
+                XMPPTCPConnectionConfiguration config = buildConfiguration();
+                SmackConfiguration.DEBUG = true;
+                connection = new XMPPTCPConnection(config);
+                connection.connect();
+            }
+        } catch (Exception e) {
+            Log.e(HOST, "some issue with getting connection :" + e.getMessage());
 
-                }
+        }
 
-                Log.d(HOST, "Connection Properties: " + connection.getHost() + " " + connection.getHost());
-                Log.d(HOST, "Time taken in first time connect: " + (System.currentTimeMillis() - l));
-        ConnectionSyncJob.schedulePeriodic();
+        Log.d(HOST, "Connection Properties: " + connection.getHost() + " " + connection.getHost());
+        Log.d(HOST, "Time taken in first time connect: " + (System.currentTimeMillis() - l));
+//        ConnectionSyncJob.schedulePeriodic();
         return connection;
     }
 
@@ -149,39 +156,40 @@ public class XMPP {
     public boolean openConnection() {
         return login(USERNAME, PASSWORD) ? true : false;
     }
-    boolean isLoggedIn = false;
-    private boolean login(final String username, final String password) {
 
+    private boolean login(final String username, final String password) {
+        setOnLoggedInListener(this);
         new Thread(new Runnable() {
             @Override
             public void run() {
-                try {
-                    connection = getConnection();
-                    connection.login(username, password);
-                    if (connection.isAuthenticated()) {
-                        isLoggedIn = true;
-                        mOnLoggedIn.onLoggedIn(true);
-                        roster = Roster.getInstanceFor(connection);
-                        roster.addRosterListener(mRosterListener);
-                        StanzaFilter stanzaFilter = new StanzaTypeFilter(Message.class);
-                        connection.addAsyncStanzaListener(mStanzaListener, stanzaFilter);
+                synchronized (this) {
+                    try {
+                        connection = getConnection();
+                        connection.login(username, password);
+                        if (connection.isAuthenticated()) {
+                            isLoggedIn = true;
+                        /*if (mOnLoggedIn == null || mRosterListener == null || mStanzaListener == null) {
+                            registerListeners(getCon);
+                        }*/
+                            mOnLoggedIn.onLoggedIn(true, connection);
+                        }
+                    } catch (XMPPException e) {
+                        e.printStackTrace();
+                    } catch (SmackException e) {
+                        e.printStackTrace();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
                     }
-                } catch (XMPPException e) {
-                    e.printStackTrace();
-                } catch (SmackException e) {
-                    e.printStackTrace();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
                 }
             }
         }).start();
-       return isLoggedIn;
+        return isLoggedIn;
     }
 
-    private boolean sendMessage(Jid to,Message.Type type, String messageBody){
-        if (isConnected()){
+    private boolean sendMessage(Jid to, Message.Type type, String messageBody) {
+        if (isConnected()) {
             Message message = new Message(to, Message.Type.chat);
             message.setBody(messageBody);
             try {
@@ -198,7 +206,7 @@ public class XMPP {
         return false;
     }
 
-    public void setOnLoggedInListener(OnLoggedIn listener) {
+    public void setOnLoggedInListener(hola.app.us.hola.OnLoggedIn listener) {
         mOnLoggedIn = listener;
     }
 
@@ -214,8 +222,30 @@ public class XMPP {
         mOnStanzaListener = listener;
     }
 
+    @Override
+    protected void onHandleWork(@NonNull Intent intent) {
+        String username = intent.getExtras().get("username").toString();
+        String password = intent.getExtras().get("password").toString();
+
+        login(username, password);
+    }
+
+    private void registerListeners(Context context) {
+        setOnConnectedListener((ConversationsActivity) context);
+        setOnStanzaListener((ConversationsActivity) context);
+        setOnRosterListener((ConversationsActivity) context);
+    }
+
+    @Override
+    public void onLoggedIn(boolean isloggedIn, XMPPTCPConnection connection) {
+        roster = Roster.getInstanceFor(connection);
+        roster.addRosterListener(mRosterListener);
+        StanzaFilter stanzaFilter = new StanzaTypeFilter(Message.class);
+        connection.addAsyncStanzaListener(mStanzaListener, stanzaFilter);
+    }
+
     public interface OnLoggedIn {
-        void onLoggedIn(boolean isloggedIn);
+        void onLoggedIn(boolean isloggedIn, XMPPTCPConnection connection);
     }
 
     public interface OnConnected {
@@ -223,15 +253,15 @@ public class XMPP {
     }
 
     public interface OnRosterListener {
-        void entriesAdded(Collection<Jid> addresses);
+        void entriesAdded(Collection<Jid> addresses, Roster roster);
 
         ;
 
-        void entriesUpdated(Collection<Jid> addresses);
+        void entriesUpdated(Collection<Jid> addresses, Roster roster);
 
-        void entriesDeleted(Collection<Jid> addresses);
+        void entriesDeleted(Collection<Jid> addresses, Roster roster);
 
-        void presenceChanged(Presence presence);
+        void presenceChanged(Presence presence, Roster roster);
     }
 
     public interface OnStanzaListener {
