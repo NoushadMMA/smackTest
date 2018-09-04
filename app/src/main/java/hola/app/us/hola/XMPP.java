@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Handler;
+import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.v4.app.JobIntentService;
 import android.util.Log;
@@ -54,21 +55,25 @@ public class XMPP extends JobIntentService implements OnLoggedIn {
     private RosterListener mRosterListener = new RosterListener() {
         @Override
         public void entriesAdded(Collection<Jid> addresses) {
+//            onLoggedIn(isLoggedIn, connection);
             mOnRosterListener.entriesAdded(addresses, roster);
         }
 
         @Override
         public void entriesUpdated(Collection<Jid> addresses) {
+//            onLoggedIn(isLoggedIn, connection);
             mOnRosterListener.entriesUpdated(addresses, roster);
         }
 
         @Override
         public void entriesDeleted(Collection<Jid> addresses) {
+//            onLoggedIn(isLoggedIn, connection);
             mOnRosterListener.entriesDeleted(addresses, roster);
         }
 
         @Override
         public void presenceChanged(Presence presence) {
+//            onLoggedIn(isLoggedIn, connection);
             mOnRosterListener.presenceChanged(presence, roster);
         }
     };
@@ -76,6 +81,7 @@ public class XMPP extends JobIntentService implements OnLoggedIn {
     private StanzaListener mStanzaListener = new StanzaListener() {
         @Override
         public void processStanza(Stanza packet) throws SmackException.NotConnectedException, InterruptedException, SmackException.NotLoggedInException {
+            onLoggedIn(isLoggedIn, connection);
             mOnStanzaListener.processStanza(packet);
         }
     };
@@ -242,6 +248,13 @@ public class XMPP extends JobIntentService implements OnLoggedIn {
         roster.addRosterListener(mRosterListener);
         StanzaFilter stanzaFilter = new StanzaTypeFilter(Message.class);
         connection.addAsyncStanzaListener(mStanzaListener, stanzaFilter);
+        new Handler(Looper.getMainLooper()).post(
+
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        registerListeners(ConversationsActivity.getInstance());
+                    }});
     }
 
     public interface OnLoggedIn {

@@ -17,10 +17,13 @@ import java.util.List;
 public class ConversationsListAdapter extends RecyclerView.Adapter<ConversationsListAdapter.ViewHolder> {
 
 
+    List<RosterEntry> mRosterEntryList = new ArrayList<>();
+    onClickedItemListener mOnClickedItemListener;
     private Collection<RosterEntry> mRosterEntryCollection;
 
-    public ConversationsListAdapter(Collection<RosterEntry> rosterEntryCollection) {
-        mRosterEntryCollection = rosterEntryCollection;
+    public ConversationsListAdapter(List<RosterEntry> rosterEntryCollection) {
+        mRosterEntryList = rosterEntryCollection;
+
     }
 
     @NonNull
@@ -28,25 +31,38 @@ public class ConversationsListAdapter extends RecyclerView.Adapter<Conversations
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup viewGroup, int i) {
         View view = null;
         LayoutInflater inflater = LayoutInflater.from(viewGroup.getContext());
-        if (view==null) {
-            view = inflater.inflate(R.layout.conversations_list_items,viewGroup,false);
+        if (view == null) {
+            view = inflater.inflate(R.layout.conversations_list_items, viewGroup, false);
         }
         return new ViewHolder(view);
     }
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder viewHolder, int i) {
-        RosterEntry entry = mRosterEntryCollection.iterator().next();
-        viewHolder.contactName.setText(entry.getName() == null || entry.getName().isEmpty() ? entry.getName() : entry.getUser());
-//        viewHolder.contactLastMessageTime.setText(entry.getStatus().toString());
+        final RosterEntry entry = mRosterEntryList.get(i);
+        viewHolder.contactName.setText(entry.getName() != null ? entry.getName() : entry.getJid().toString().replace("@server.holaapp.us", ""));
+        viewHolder.itemView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mOnClickedItemListener.onClickedConversationItem(entry);
+            }
+        });
     }
 
     @Override
     public int getItemCount() {
-        return mRosterEntryCollection.size();
+        return mRosterEntryList.size();
     }
 
-    public class ViewHolder extends RecyclerView.ViewHolder{
+    public void setOnClickedItemListener(onClickedItemListener listener) {
+        mOnClickedItemListener = listener;
+    }
+
+    public interface onClickedItemListener {
+        void onClickedConversationItem(RosterEntry entry);
+    }
+
+    public class ViewHolder extends RecyclerView.ViewHolder {
         ImageView contactDp;
         TextView contactName;
         TextView contactLastMessage;

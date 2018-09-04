@@ -11,8 +11,8 @@ public class AppClass extends Application {
     public void onCreate() {
         super.onCreate();
         instance = this;
-        JobManager.create(this).addJobCreator(new ConnectionCreater());
-        JobConfig.setAllowSmallerIntervalsForMarshmallow(true);
+//        JobManager.create(this).addJobCreator(new ConnectionCreater());
+//        JobConfig.setAllowSmallerIntervalsForMarshmallow(true);
     }
 
     public static AppClass getApplicationContextInstance(){

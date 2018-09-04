@@ -30,10 +30,10 @@ class ConnectionSyncJob extends Job {
     @Override
     protected Result onRunJob(@NonNull Params params) {
 
-        XMPP.getInstance().openConnection();/*
+//        XMPP.getInstance().openConnection();/*
 //                    getContext().sendBroadcast(new Intent("liveapp.loggedin"));
 //                    Toast.makeText(getContext(), "sender: ", Toast.LENGTH_SHORT).show();
-                } catch (XMPPException e) {
+                /*} catch (XMPPException e) {
                     e.printStackTrace();
                 } catch (SmackException e) {
                     e.printStackTrace();
